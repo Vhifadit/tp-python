@@ -6,6 +6,7 @@ import sys
 import webbrowser
 from data_manager import DataManager
 from facture_generator import FactureGenerator
+import re
 
 class ApplicationFacturation:
     def __init__(self):
@@ -181,6 +182,15 @@ class ApplicationFacturation:
                 nouvelle_carte = self.data_manager.creer_carte_reduction(client_info['code_client'], total_ttc)
                 if nouvelle_carte:
                     print(f"\n🎉 Une carte de réduction de {nouvelle_carte['taux_reduction']}% a été créée pour ce client !")
+                    # Générer la carte PDF et l'ouvrir
+                    carte_pdf = self.facture_generator.generer_carte_reduction(client_info, nouvelle_carte)
+                    print(f"✅ Carte PDF générée : {carte_pdf}")
+                    try:
+                        webbrowser.open(f'file:///{os.path.abspath(carte_pdf)}')
+                        print("🌐 Ouverture de la carte dans le navigateur...")
+                    except Exception as e:
+                        print(f"⚠️ Impossible d'ouvrir automatiquement la carte : {e}")
+                        print(f"📁 Vous pouvez l'ouvrir manuellement : {carte_pdf}")
             
             print(f"\n✅ Facture générée avec succès : {filename}")
             
@@ -201,7 +211,20 @@ class ApplicationFacturation:
         
         code_client = input("Code client : ").strip()
         nom = input("Nom : ").strip()
-        contact = input("Contact (email/téléphone) : ").strip()
+        while True:
+            contact = input("Contact (email/téléphone) : ").strip()
+            if '@' in contact:
+                # Vérification email stricte : uniquement gmail.com
+                if re.match(r"^[a-zA-Z0-9_.+-]+@gmail\.com$", contact):
+                    break
+                else:
+                    print("❌ L'email doit être au format nom@gmail.com (Gmail uniquement)")
+            else:
+                # Vérification numéro
+                if contact.isdigit() and len(contact) >= 8:
+                    break
+                else:
+                    print("❌ Le numéro doit contenir uniquement des chiffres (au moins 8)")
         ifu = input("IFU (13 caractères) : ").strip()
         
         if not all([code_client, nom, contact, ifu]):
@@ -383,7 +406,10 @@ class ApplicationFacturation:
     def demarrer(self):
         """Démarrer l'application"""
         print("🚀 Démarrage de l'Application de Facturation...")
-        
+        # Création du dossier cartes/ si besoin
+        if not os.path.exists('cartes'):
+            os.makedirs('cartes')
+            print("📁 Dossier 'cartes/' créé pour les cartes de réduction.")
         # Vérifier que les fichiers de données existent
         if not os.path.exists('data'):
             print("❌ Le dossier 'data' est introuvable. Merci de placer vos fichiers Excel dans ce dossier.")
